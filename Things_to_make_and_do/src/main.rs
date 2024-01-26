@@ -1,8 +1,11 @@
 use rand::{thread_rng, Rng};
 use num_bigint::BigUint;
 use num_integer::Integer;
+use std::time::Instant;
+use std::thread;
+use std::sync::{Arc, Mutex};
 
-fn multiply_digits(number: &BigUint) -> BigUint {
+fn multiply_digits_v1(number: &BigUint) -> BigUint {
     let mut product = BigUint::from(1u32);
     let mut temp = number.clone();
     while temp > BigUint::from(0u32) {
@@ -13,7 +16,7 @@ fn multiply_digits(number: &BigUint) -> BigUint {
     product
 }
 
-fn multiply_digits_v2(number: &BigUint) -> BigUint {
+fn multiply_digits(number: &BigUint) -> BigUint {
     let mut product = BigUint::from(1u32);
     let mut temp = number.clone();
     while temp > BigUint::from(0u32) {
@@ -84,7 +87,7 @@ fn find_max_persistence(goal: u32, max_digits: u32, min_digits: u32) {
     let mut list_of_numbers = Vec::<BigUint>::new();
     let mut max_count = 0;
     let mut n_skip = 0;
-    while max_count < goal && n_skip < 1000000{
+    while max_count < goal && n_skip < 100{
         let number: BigUint = generate_number(max_digits, min_digits);
         if list_of_numbers.binary_search(&number).is_ok() {
             n_skip += 1;
@@ -96,25 +99,98 @@ fn find_max_persistence(goal: u32, max_digits: u32, min_digits: u32) {
         
         let result = persistence(&number, 0);
         if result > max_count {
-            println!("Number: {}, Persistence: {}", number, result);
+            //println!("Number: {}, Persistence: {}", number, result);
             max_count = result;
         }
         list_of_numbers.push(number);
         list_of_numbers.sort();
+        //println!("list_of_numbers length: {}", list_of_numbers.len());
     }
 
-    println!("Max count: {}", max_count);
-    println!("Number of skips: {}", n_skip);
-    println!("List of numbers length: {}", list_of_numbers.len());
+    //println!("Max count: {}", max_count);
+    //println!("Number of skips: {}", n_skip);
+    //println!("List of numbers length: {}", list_of_numbers.len());
+}
+
+fn multi_thread_find_max_persistence(goal: u32, max_digits: u32, min_digits: u32) {
+    let mut list_of_numbers = Vec::<BigUint>::new();
+    let mut n_skip = 0;
+    let mut max_count_outer = 0;
+    let max_count = Arc::new(Mutex::new(0));
+    let total_threads = Arc::new(Mutex::new(0));
+    while max_count_outer < goal && n_skip < 100{
+        
+        let mut handles = Vec::new();
+        if handles.len() < 64 {
+            let number: BigUint = generate_number(max_digits, min_digits);
+            if list_of_numbers.binary_search(&number).is_ok() {
+                n_skip += 1;
+                continue;
+            }
+            n_skip = 0;
+            
+            let cloned_number = number.clone();
+
+            let max_count = Arc::clone(&max_count);
+            let total_threads = Arc::clone(&total_threads);
+
+            handles.push(thread::spawn(move || {
+                let mut total_threads = total_threads.lock().unwrap();
+                *total_threads += 1;
+
+                let result = persistence(&cloned_number, 0);
+                let mut max_count_value = max_count.lock().unwrap();
+                if result > *max_count_value {
+                    //println!("Number: {}, Persistence: {}", number, result);
+                    *max_count_value = result;
+                }
+            }));
+
+            list_of_numbers.push(number);
+            list_of_numbers.sort();
+            //println!("list_of_numbers length: {}", list_of_numbers.len());
+        }
+        else {
+            for handle in handles{
+                if handle.is_finished() {
+                    handle.join().unwrap();
+                }
+            }
+        }
+        max_count_outer = *max_count.lock().unwrap();
+    }
+
+    //println!("Max count: {}", max_count_outer);
+    //println!("Number of skips: {}", n_skip);
+    //println!("List of numbers length: {}", list_of_numbers.len());
+    //println!("Total threads: {}", *total_threads.lock().unwrap());
 }
 
 fn main() {
     
+    //multi_thread_find_max_persistence(11, 20, 0);
+
+
     //let number = BigUint::from(277777788888899u128);
     //let result = persistence(&number, 0);
     //println!("Number: {}, Persistence: {}", number, result);
-    
-    find_max_persistence(11, 300, 200);
+    let mut durations = Vec::<u128>::new();
+    for i in 0..1000{
+        let start = Instant::now();
+        //multi_thread_find_max_persistence(11, 20, 0);
+        find_max_persistence(11, 20, 0);
+        let duration = start.elapsed().as_millis();
+        println!("Time elapsed in milliseconds: {}", duration);
+        durations.push(duration);
+        println!("Iteration: {}", i);
+    }
+    // calculate the average
+    let mut sum = 0;
+    for duration in &durations {
+        sum += duration;
+    }
+    let average = sum / durations.len() as u128;
+    println!("Average time elapsed in milliseconds: {}", average);
 
     //for _ in 0..100{
     //    let n = generate_number(10,5);
