@@ -15,12 +15,16 @@ fn multiply_digits(number: &BigUint) -> BigUint {
     product
 }
 
-pub fn find_persistence(number: &BigUint, count: u32) -> u32 {
+fn persistence(number: &BigUint, count: u32) -> u32 {
     if number.to_string().len() == 1 {
         return count;
     }
     let product = multiply_digits(number);
-    find_persistence(&product, count + 1)
+    persistence(&product, count + 1)
+}
+
+pub fn find_persistence(number: &BigUint) -> u32 {
+    persistence(number, 0)
 }
 
 fn generate_number(max_digits: &u32, min_digits: &u32) -> BigUint {
@@ -71,7 +75,8 @@ pub fn find_max_persistence(goal: &u32, max_digits: &u32, min_digits: &u32) -> (
     let mut list_of_numbers = Vec::<BigUint>::new();
     let mut max_count = 0;
     let mut n_skip = 0;
-    while &max_count < goal && n_skip < 100 {
+
+    while &max_count < goal && n_skip < u32::MAX {
         let number: BigUint = generate_number(max_digits, min_digits);
         if list_of_numbers.binary_search(&number).is_ok() {
             n_skip += 1;
@@ -79,7 +84,7 @@ pub fn find_max_persistence(goal: &u32, max_digits: &u32, min_digits: &u32) -> (
         }
         n_skip = 0;
 
-        let result = find_persistence(&number, 0);
+        let result = find_persistence(&number);
         if result > max_count {
             max_count = result;
         }
@@ -101,10 +106,13 @@ pub fn multi_thread_find_max_persistence(
     let mut max_count_outer = 0;
     let max_count = Arc::new(Mutex::new(0));
     let mut total_threads = 0;
-    while &max_count_outer < goal && n_skip < 100 {
+
+    while &max_count_outer < goal && n_skip < 1000 {
         let mut handles = Vec::new();
+
         if handles.len() < 64 {
             let number: BigUint = generate_number(max_digits, min_digits);
+
             if list_of_numbers.binary_search(&number).is_ok() {
                 n_skip += 1;
                 continue;
@@ -117,7 +125,7 @@ pub fn multi_thread_find_max_persistence(
             total_threads += 1;
 
             handles.push(thread::spawn(move || {
-                let result = find_persistence(&cloned_number, 0);
+                let result = find_persistence(&cloned_number);
                 let mut max_count_value = max_count.lock().unwrap();
                 if result > *max_count_value {
                     *max_count_value = result;
@@ -176,22 +184,22 @@ mod tests {
     fn test_persistence() {
         {
             let number = "277777788888899".parse::<BigUint>().unwrap();
-            let persistence = find_persistence(&number, 0);
+            let persistence = find_persistence(&number);
             assert_eq!(persistence, 11);
         }
         {
             let number = "2789".parse::<BigUint>().unwrap();
-            let persistence = find_persistence(&number, 0);
+            let persistence = find_persistence(&number);
             assert_eq!(persistence, 2);
         }
         {
             let number = "909".parse::<BigUint>().unwrap();
-            let persistence = find_persistence(&number, 0);
+            let persistence = find_persistence(&number);
             assert_eq!(persistence, 1);
         }
         {
             let number = "6".parse::<BigUint>().unwrap();
-            let persistence = find_persistence(&number, 0);
+            let persistence = find_persistence(&number);
             assert_eq!(persistence, 0);
         }
     }
