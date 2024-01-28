@@ -3,13 +3,6 @@ use std::time::Instant;
 pub mod calculate_pi;
 pub mod persistence;
 
-#[allow(unused_imports)]
-use calculate_pi::calculate_pi;
-#[allow(unused_imports)]
-use persistence::find_max_persistence;
-#[allow(unused_imports)]
-use persistence::multi_thread_find_max_persistence;
-
 // Orginal number is 277777788888899
 #[allow(dead_code)]
 fn persistence() {
@@ -18,9 +11,8 @@ fn persistence() {
     let total_start = Instant::now();
     for i in 0..1000 {
         let start = Instant::now();
-        //let (max_count, n_skip, number_of_numbers, number_of_threads) =
-        //    multi_thread_find_max_persistence(&11, &20, &0);
-        let (_, _, _) = find_max_persistence(&11, &20, &0);
+        //let (_, _, _, _) = persistence::multi_thread_find_max_persistence(&11, &20, &0);
+        let (_, _, _) = persistence::find_max_persistence(&11, &20, &0);
         let duration = start.elapsed().as_millis();
         durations.push(duration);
         println!(
@@ -46,12 +38,22 @@ fn persistence() {
 fn pi() {
     let iterations = 10e6.into();
     println!("iterations = {}", iterations);
-
-    let start = Instant::now();
-    let pi = calculate_pi(iterations);
-    let duration = start.elapsed().as_millis();
-    println!("pi = {}", pi);
-    println!("Time elapsed in milliseconds: {}", duration);
+    {
+        let start = Instant::now();
+        // let pi = calculate_pi::calculate_pi(iterations);
+        let pi = calculate_pi::calculate_pi_copilot(iterations);
+        let duration = start.elapsed().as_millis();
+        println!("pi = {}", pi);
+        println!("Time elapsed in milliseconds: {}", duration);
+    }
+    {
+        let start = Instant::now();
+        let pi = calculate_pi::calculate_pi(iterations);
+        // let pi = calculate_pi::calculate_pi_copilot(iterations);
+        let duration = start.elapsed().as_millis();
+        println!("pi = {}", pi);
+        println!("Time elapsed in milliseconds: {}", duration);
+    }
 }
 
 fn main() {
